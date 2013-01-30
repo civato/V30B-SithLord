@@ -33,6 +33,12 @@
 
 #include <trace/events/power.h>
 
+#ifdef CONFIG_TEGRA_OC
+#include "../dvfs.h"
+int *UV_mV_Ptr; /* Stored voltage table from cpufreq sysfs */
+extern struct dvfs *cpu_dvfs;
+#endif
+
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_CORE, \
 						"cpufreq-core", msg)
 
@@ -668,6 +674,60 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
+#ifdef CONFIG_TEGRA_OC
+static ssize_t show_frequency_voltage_table(struct cpufreq_policy *policy, char *buf)
+{
+	int i = 0;
+	char *table = buf;
+
+	if (cpu_dvfs == NULL)
+		return sprintf(buf, "INIT\n");
+
+	for (i = cpu_dvfs->num_freqs-1; i >= 0; i--)
+		table += sprintf(table, "%li %d %d\n", cpu_dvfs->freqs[i]/1000,
+				cpu_dvfs->millivolts[i], cpu_dvfs->millivolts[i] - UV_mV_Ptr[i]);
+
+	return table - buf;
+}
+
+static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
+{
+	int i;
+	char *table = buf;
+
+	if (cpu_dvfs == NULL)
+		return sprintf(buf, "INIT\n");
+
+	for (i = cpu_dvfs->num_freqs - 1; i >= 0; i--) {
+		table += sprintf(table, "%d ", UV_mV_Ptr[i]);
+	}
+	table += sprintf(table, "\n");
+	return table - buf;
+}
+
+static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+	char *p = buf, *k;
+        int i = cpu_dvfs->num_freqs - 1;
+
+	while (i >= 0) {
+		k = strsep(&p, " ");
+		if (k == NULL)
+			break;
+		if (strlen(k) > 0) {
+			UV_mV_Ptr[i] = simple_strtol(k, NULL, 10);
+			pr_info("UV_mV[%d] = %d\n", i, UV_mV_Ptr[i]);
+			i--;
+		}
+	}
+
+	if (i == cpu_dvfs->num_freqs - 1)
+		return -EINVAL;
+
+	return count;
+}
+#endif
+
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
 cpufreq_freq_attr_ro(cpuinfo_max_freq);
@@ -685,6 +745,11 @@ cpufreq_freq_attr_rw(scaling_setspeed);
 cpufreq_freq_attr_ro(policy_min_freq);
 cpufreq_freq_attr_ro(policy_max_freq);
 
+#ifdef CONFIG_TEGRA_OC
+cpufreq_freq_attr_ro(frequency_voltage_table);
+cpufreq_freq_attr_rw(UV_mV_table);
+#endif
+
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
 	&cpuinfo_max_freq.attr,
@@ -699,6 +764,11 @@ static struct attribute *default_attrs[] = {
 	&scaling_setspeed.attr,
 	&policy_min_freq.attr,
 	&policy_max_freq.attr,
+
+#ifdef CONFIG_TEGRA_OC
+	&frequency_voltage_table.attr,
+	&UV_mV_table.attr,
+#endif
 	NULL
 };
 
@@ -2039,6 +2109,11 @@ static int __init cpufreq_core_init(void)
 {
 	int cpu;
 	int rc;
+
+#ifdef CONFIG_TEGRA_OC
+	/* Allocate some memory for the voltage tab */
+	UV_mV_Ptr = kzalloc(sizeof(int)*(MAX_DVFS_FREQS), GFP_KERNEL);
+#endif
 
 	for_each_possible_cpu(cpu) {
 		per_cpu(cpufreq_policy_cpu, cpu) = -1;
