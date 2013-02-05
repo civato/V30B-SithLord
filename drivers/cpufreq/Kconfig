@@ -168,6 +168,28 @@ config CPU_FREQ_DEFAULT_GOV_SAVAGEDZEN
   	 select CPU_FREQ_GOV_SAVAGEDZEN
   	 help
 
+config CPU_FREQ_DEFAULT_GOV_GALLIMAUFRY
+	bool "gallimaufry"
+	select CPU_FREQ_GOV_GALLIMAUFRY
+	help
+	A pimped out ondemand governor.
+        This features earlysuspend, hotplugging, a
+        2-phase algo, and tweaks to make it more aggressive.
+
+config CPU_FREQ_DEFAULT_GOV_AGGRESSIVE
+	bool "aggressive"
+	select CPU_FREQ_GOV_AGGRESSIVE
+	help
+	A pimped out conservative governor.
+        This features earlysuspend, hotplugging,
+        and tweaks to make it more aggressive.
+
+config CPU_FREQ_DEFAULT_GOV_SAKURACTIVE
+         bool "sakuractive"
+         select CPU_FREQ_GOV_SAKURACTIVE
+         help
+           eekzeel
+
 config CPU_FREQ_DEFAULT_GOV_LAZY
  	 bool "lazy"
   	 select CPU_FREQ_GOV_LAZY
@@ -338,6 +360,38 @@ config CPU_FREQ_GOV_SAVAGEDZEN
 	depends on CPU_FREQ
 	help
 	  Use as default governor
+
+config CPU_FREQ_GOV_GALLIMAUFRY
+	tristate "'gallimaufry' governor"
+  depends on CPU_FREQ
+	help
+	Help is a lie.
+
+config CPU_FREQ_GOV_AGGRESSIVE
+	tristate "'aggressive' governor"
+  depends on CPU_FREQ
+	help
+	Help is a lie.
+
+config CPU_FREQ_GOV_SAKURACTIVE
+        tristate "'sakuractive' cpufreq governor"
+        depends on CPU_FREQ && NO_HZ && HOTPLUG_CPU
+        help
+          'sakuractive' - this driver mimics the frequency scaling behavior
+           in 'ondemand', but with several key differences. First is
+           that frequency transitions use the CPUFreq table directly,
+           instead of incrementing in a percentage of the maximum
+           available frequency. Second 'sakuractive' will offline auxillary
+           CPUs when the system is idle, and online those CPUs once the
+           system becomes busy again. This last feature is needed for
+           architectures which transition to low power states when only
+           the "master" CPU is online, or for thermally constrained
+           devices.
+
+           If you don't have one of these architectures or devices, use
+           'ondemand' instead.
+
+           If in doubt, say N.
 
 config CPU_FREQ_GOV_LAZY
 	tristate "'lazy' cpufreq governor"
