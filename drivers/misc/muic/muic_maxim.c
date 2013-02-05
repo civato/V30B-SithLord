@@ -51,7 +51,7 @@
 /* if you want to display AP_UART for debugging, you must define V56K_CONVERT_CP_USB_TO_AP_UART */
 //#define V56K_CONVERT_CP_USB_TO_AP_UART
 
-//                                           
+// LGE_UPDATE yoolje.cho@lge.com [[ 4 charger
 extern int muic_send_cable_type(TYPE_MUIC_MODE mode);
 
 
@@ -59,11 +59,17 @@ extern int muic_send_cable_type(TYPE_MUIC_MODE mode);
 extern int half_boot_enable;
 #endif
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+extern bool force_fast_charge; /* fast charge */
+#else
+bool force_fast_charge = false;
+#endif
+
 void muic_init_max14526(TYPE_RESET reset)
 {
 	printk(KERN_WARNING "[MUIC] max14526_init()\n");
 
-	//                                        
+	//[jongho3.lee@lge.com]  muic detecting...
 	//atomic_set(&muic_charger_detected,0);
 	if (reset == RESET) {
 		/* Clears default switch position (0x03=0x24) */
@@ -84,9 +90,6 @@ void muic_init_max14526(TYPE_RESET reset)
 }
 EXPORT_SYMBOL(muic_init_max14526);
 
-
-
-
 void set_max14526_ap_uart_mode(void) //UART_MODE
 {
 	printk(KERN_WARNING "[MUIC] set_max14526_ap_uart_mode\n" );
@@ -104,7 +107,6 @@ void set_max14526_ap_uart_mode(void) //UART_MODE
 	muic_i2c_write_byte(SW_CONTROL, COMP2_TO_U2 | COMN1_TO_U1);
 }
 
-
 void set_max14526_ap_usb_mode(void)	//USB_MODE
 {
 	s32 ret;
@@ -120,7 +122,6 @@ void set_max14526_ap_usb_mode(void)	//USB_MODE
 	/* Enables 200K, Charger Pump, and ADC (0x01=0x13) */
 	muic_i2c_write_byte(CONTROL_1, ID_200 | ADC_EN | CP_EN);
 }
-
 
 void set_max14526_cp_uart_mode(void) //UART_MODE
 {
@@ -156,7 +157,7 @@ void set_max14526_cp_usb_mode(void) //USB_MODE
 	muic_i2c_write_byte(SW_CONTROL, COMP2_TO_U2 | COMN1_TO_U1);
 }
 
-#if 0 //                                          
+#if 0 // [gieseo.park@lge.com] - not used in Cosmo
 void set_max14526_charger_mode(unsigned char int_stat_value)
 {
 	unsigned char reg_value;
@@ -200,7 +201,7 @@ void set_max14526_muic_mode(unsigned char int_stat_value)
 	
 	printk(KERN_WARNING "[MUIC] set_max14526_muic_mode, int_stat_value = 0x%02x \n", int_stat_value);
 
-	//                                                 
+	//[gieseo.park@lge.com] - Cosmo MUIC detection code
 	if (int_stat_value & V_VBUS) {
 #if 0
 		if ((int_stat_value & IDNO) == IDNO_0010 || 
@@ -255,7 +256,7 @@ void set_max14526_muic_mode(unsigned char int_stat_value)
 
 			muic_i2c_read_byte(STATUS, &reg_value);
 
-			if (reg_value & C1COMP) {
+			if (reg_value & C1COMP || force_fast_charge) {
 #if defined(CONFIG_MACH_STAR_P990) || defined(CONFIG_MACH_STAR_SU660) || defined(CONFIG_MACH_STAR_P999)
 				printk("[****MUIC****] Detect Charger C1COMP!!!!");
 					muic_i2c_write_byte(SW_CONTROL, COMP2_TO_HZ | COMN1_TO_HZ);
@@ -287,7 +288,7 @@ void set_max14526_muic_mode(unsigned char int_stat_value)
 			charging_mode = CHARGING_NONE;
 		}
 	}
-#if 0 //                                        
+#if 0 //[gieseo.park@lge.com] - X3 original code
 		if(retain_mode  == BOOT_CP_USB){
 			set_max14526_cp_usb_mode_detect();
 		}if ((int_stat_value & IDNO) == IDNO_0100 || (int_stat_value == 0x11)) { /* 0x11 for Special Test with MIC */  
@@ -377,7 +378,7 @@ s32 muic_max14526_detect_accessory(s32 upon_irq)
 		charging_mode = CHARGING_UNKNOWN;
 		return ret;
 	}
-    	//                                                                                               
+    	//ret = muic_i2c_write_byte(CONTROL_2, 0x00); //interrupt masked by ks.kwon@lge.com for debugging
   	//muic_mode = int_stat_value & IDNO;
 
 	//set_max14526_device_none_detect(int_stat_value);		   
@@ -456,9 +457,10 @@ s32 muic_max14526_detect_accessory(s32 upon_irq)
         printk(KERN_INFO "[MUIC] charging_ic_deactive()\n");
     }
 
-	//                                           
-	//                                                                                                   
+	// LGE_UPDATE yoolje.cho@lge.com [[ 4 charger
+	//muic_send_cable_type(muic_mode);	//[gieseo.park@lge.com] - charger type is now sent by muic.c part.
 
 	return ret;
 }
 EXPORT_SYMBOL(muic_max14526_detect_accessory);
+

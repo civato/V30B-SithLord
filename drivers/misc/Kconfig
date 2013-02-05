@@ -568,6 +568,13 @@ config MAX1749_VIBRATOR
 	---help---
 	Adds a timed output vibrator device node for MAX1749 vibrator motor
 
+config FORCE_FAST_CHARGE
+        bool "Force AC charge mode at will"
+        default n
+        help
+          A simple sysfs interface to force adapters that
+          are detected as USB to charge as AC.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

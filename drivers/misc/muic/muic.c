@@ -50,7 +50,7 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 
-//                                           
+// LGE_UPDATE yoolje.cho@lge.com [[ 4 charger
 #include <linux/power_supply.h>
 
 #include <linux/muic.h>
@@ -86,6 +86,7 @@
 #include <lge/bssq_charger_rt.h>
 #endif
 #include <linux/lge_hw_rev.h>
+
 extern int muic_boot_keeping;
 extern int muic_boot_path;
 
@@ -305,7 +306,7 @@ static void muic_cp_reset(void)
 #endif
 
 //MOBII_CHNANGE_S 20120416 jd.park@mobii.co.kr : FOTA UA Upgrade for ICS
-//                                            
+//LGE_CHANGE_S	jinook.hong	2012-02-21	for FOTA
 void fota_cp_reset(void)
 {
 #if 1 // jdpark : fota reset
@@ -346,13 +347,13 @@ void fota_cp_reset(void)
 		return;
 #endif
 }
-//                                            
+//LGE_CHANGE_E	jinook.hong	2012-02-21	for FOTA
 //MOBII_CHNANGE_E 20120416 jd.park@mobii.co.kr : FOTA UA Upgrade for ICS
 
 #endif
 
 #if defined(CONFIG_MHL_TX_SII9244)	
-//                                               
+//[gieseo.park@lge.com] - moved muic_ti.c to here
 void muic_set_mhl_mode_detect(void) 
 { 
 
@@ -374,7 +375,7 @@ void muic_set_mhl_mode_detect(void)
 
 	MHL_On(1); 
 
-	//                                                                         
+	//muic_mode = MUIC_MHL;  //[gieseo.park@lge.com] - Set by caller. NOT here.
 }
 #endif
 
@@ -443,11 +444,11 @@ static ssize_t muic_proc_write(struct file *filp, const char *buf, size_t len, l
 #if defined (CONFIG_MACH_BSSQ)|| defined (CONFIG_MACH_STAR)
 	char nv_msg[1];
 #endif 
-#if 0 //                              
+#if 0 //dongho70.kim@lge.com for Fixed
 	char cmd;
 	char nv_msg[1];
 
-	len = sscanf(buf, "%c", &cmd/*, &dummy*/);	//                                       
+	len = sscanf(buf, "%c", &cmd/*, &dummy*/);	//[gieseo.park@lge.com] - what is dummy ?
 #else
     char messages[10];
     s8 reg, val;
@@ -656,14 +657,15 @@ void check_charging_mode(void)
 	s32 value;
 
 	value = i2c_smbus_read_byte_data(muic_client, INT_STAT);
+
 	if (value & V_VBUS) {
-		if ((value & IDNO) == IDNO_0010 || 
-				(value & IDNO) == IDNO_0100 ||
-				(value & IDNO) == IDNO_1001 ||
-			(value & IDNO) == IDNO_1010 /*||
-			(boot_retain_mode == RETAIN_AP_USB && retain_mode == RETAIN_AP_USB)*/)	//                                                                                                
+		if ((value & IDNO) == IDNO_0010 ||
+		    (value & IDNO) == IDNO_0100 ||
+		    (value & IDNO) == IDNO_1001 ||
+		    (value & IDNO) == IDNO_1010 /*||
+			(boot_retain_mode == RETAIN_AP_USB && retain_mode == RETAIN_AP_USB)*/)	//[gieseo.park@lge.com] force set CHARGING_FACTORY on Boot RETAIN_AP_USB mode. (for MilkyU device)
 			charging_mode = CHARGING_FACTORY;
-		else if (value & CHGDET) 
+		else if (value & CHGDET)
 			charging_mode = CHARGING_LG_TA;
 		else
 			charging_mode = CHARGING_USB;
@@ -686,8 +688,8 @@ void muic_mdelay(u32 microsec)
 }
 EXPORT_SYMBOL(muic_mdelay);
 
-#if 0 //                                   
-//                                                
+#if 0 // [gieseo.park@lge.com] - Cosmo only
+// [jongho3.lee@lge.com] get muic mode for charger
 TYPE_MUIC_MODE get_muic_mode(void)
 {
 	return charging_mode;
@@ -695,8 +697,8 @@ TYPE_MUIC_MODE get_muic_mode(void)
 EXPORT_SYMBOL(get_muic_mode);
 #endif
 
-#if 0	//                                                                    
-//                                             
+#if 0	//[gieseo.park@lge.com] - changed to check charger type, NOT muic-path
+// LGE_UPDATE_S yoolje.cho@lge.com [[ 4 charger
 int muic_send_cable_type(TYPE_MUIC_MODE mode)
 {
 	// should use platform data..
@@ -752,7 +754,7 @@ int muic_send_cable_type(TYPE_MUIC_MODE mode)
 	return ret;
 }
 EXPORT_SYMBOL(muic_send_cable_type);
-//                                             
+// LGE_UPDATE_E yoolje.cho@lge.com [[ 4 charger
 #endif
 
 /* Get MUIC Charger TYPE */
@@ -820,7 +822,7 @@ void muic_send_charger_type(TYPE_CHARGING_MODE mode)
 
 
 
-//                                                          
+// LGE_CHANGE_E[jongho3.lee] get muic detecting for charger.
 void set_muic_charger_detected(void)
 {
 #if 0 // this is for wait event which is not unsing just now. block it temporary..
@@ -833,9 +835,9 @@ void set_muic_charger_detected(void)
 	muic_chager_event = 1;
 	//wake_up(&muic_event);
 #endif
-	//                                                                      
+	//charger_fsm(CHARG_FSM_CAUSE_ANY);	//[gieseo.park@lge.com] - Cosmo code
 
-	muic_send_charger_type(charging_mode);	//                               
+	muic_send_charger_type(charging_mode);	//[gieseo.park@lge.com] - X3 code
 #if defined (MUIC_SLEEP)
 	muic_wakeup_lock();
 #endif//
@@ -991,7 +993,7 @@ static s32 muic_proc_set_ap_usb(void)
 	/* AP USB does not pass through DP3T.
 	 * Just connect AP UART to MUIC UART.
 	 */
-	dp3t_switch_ctrl(DP3T_AP_UART); //                                                                                                   
+	dp3t_switch_ctrl(DP3T_AP_UART); //dp3t_switch_ctrl(DP3T_NC);  //[gieseo.park@lge.com] - Changed to X3 Code. CP USB OFF is only thing.
 #endif
 	/* Connect DP, DM to USB_DP, USB_DM */
 	ret = muic_i2c_write_byte(SW_CONTROL, DP_USB | DM_USB);
@@ -1050,14 +1052,14 @@ static s32 muic_proc_set_cp_usb(void)
 	muic_mdelay(100);
 
 	/* Connect CP UART signals to AP */
-	usif_switch_ctrl(USIF_AP);//                                                                          
+	usif_switch_ctrl(USIF_AP);//usif_switch_ctrl(USIF_DP3T); //[gieseo.park@lge.com] - Changed to X3 code.
 
 	/* Connect CP USB to MUIC UART */
 	dp3t_switch_ctrl(DP3T_CP_USB);
 
 	/* Enables 200K, Charger Pump, and ADC (0x01=0x13) */		
 
-	//                                                                                                                             
+	// muic_i2c_write_byte(CONTROL_1,  ID_200 |ADC_EN  | CP_EN ); //13 //[gieseo.park@lge.com] - disabled because NOT in Cosmo Code
 	//	muic_i2c_write_byte(CONTROL_1, ID_200 | SEMREN | CP_EN); //15
 	//	muic_i2c_write_byte(CONTROL_1,  ID_2P2 | SEMREN );//44
 #endif 	
@@ -1132,7 +1134,7 @@ static void muic_wq_func(struct work_struct *muic_wq)
 
 	if (retain_mode == RETAIN_NO) {
 		ret = muic_detect_accessory(UPON_IRQ);
-		set_muic_charger_detected();	//                      
+		set_muic_charger_detected();	// [jongho3.lee@lge.com]
 
 		DBG("[MUIC] muic_detect_accessory(UPON_IRQ) result:  muic_mode = %s (%d), charing = %s (%d)", 
 				muic_mode_str[muic_mode], muic_mode, charging_mode_str[charging_mode], charging_mode);
@@ -1219,7 +1221,7 @@ static s32 __devinit muic_probe(struct i2c_client *client, const struct i2c_devi
 	muic_client = client;
 
 	DBG("[MUIC] LG muic_probe() Begin\n");
-#if defined(CONFIG_USIF) 
+#if defined (CONFIG_USIF)
 	/* 
 	 * Initializes gpio_165 (USIF1_SW).
 	 * Checks if other driver already occupied it.
@@ -1384,7 +1386,7 @@ static s32 __devinit muic_probe(struct i2c_client *client, const struct i2c_devi
 
 	/* Initializes MUIC - Finally MUIC INT becomes enabled */
 	if (retain_mode == RETAIN_AP_USB) {
-		muic_proc_set_ap_usb();	//                                            
+		muic_proc_set_ap_usb();	//[gieseo.park@lge.com] was not in cosmo code.
 		muic_mode = MUIC_AP_USB;
 		muic_init_device(DEFAULT);
 		check_charging_mode();
@@ -1398,7 +1400,7 @@ static s32 __devinit muic_probe(struct i2c_client *client, const struct i2c_devi
 	} else {
 
 		if (muic_init_device)
-			muic_init_device(DEFAULT);	//                                                                      
+			muic_init_device(DEFAULT);	//[gieseo.park@lge.com] default is OK(already initialized at bootloader)
 		else
 			DBG("[MUIC] You should add codes for new MUIC chip");
 		if (muic_detect_accessory)
@@ -1407,7 +1409,7 @@ static s32 __devinit muic_probe(struct i2c_client *client, const struct i2c_devi
 			DBG("[MUIC] You should add codes for new MUIC chip");
 	}
 
-	//                     
+	//[jongho3.lee@lge.com]
 	set_muic_charger_detected();
 
 	/* Makes the interrupt on MUIC_GPIO INT wake up AP which is in suspend mode */
@@ -1429,7 +1431,7 @@ static s32 __devexit muic_remove(struct i2c_client *client)
 {
 	free_irq(muic_gpio_irq, &client->dev);
 	gpio_free(MUIC_GPIO);
-	//                                                                                                                         
+	//[gieseo.park@lge.com] - Should I free other GPIOs? : USIF_IN_1_GPIO, DP3T_IN_1_GPIO, DP3T_IN_2_GPIO, IFX_USB_VBUS_EN_GPIO
 	i2c_set_clientdata(client, NULL);	// For what?
 	remove_lg_muic_proc_file();
 	return 0;
@@ -1437,7 +1439,6 @@ static s32 __devexit muic_remove(struct i2c_client *client)
 
 static s32 muic_suspend(struct i2c_client *client, pm_message_t state)
 {
-#if defined(CONFIG_MACH_STAR_P990) || defined(CONFIG_MACH_STAR_SU660) || defined(CONFIG_MACH_STAR_P999)
 	unsigned long flags;
 
 
@@ -1450,12 +1451,11 @@ static s32 muic_suspend(struct i2c_client *client, pm_message_t state)
 	spin_unlock_irqrestore(&muic_spin_lock, flags);
 #endif
 
-#endif
 	client->dev.power.power_state = state;
 if(muic_device == MAX14526)
 	muic_i2c_write_byte(CONTROL_2, 0);
 
-#if 0	//                                    
+#if 0	//[gieseo.park@lge.com] - why syspend?
 	muic_i2c_write_byte(CONTROL_2, USB_DET_DIS);
 	muic_i2c_write_byte(CONTROL_1, 0x00);
 	muic_i2c_write_byte(SW_CONTROL, OPEN);
@@ -1471,7 +1471,6 @@ static s32 muic_resume(struct i2c_client *client)
 	printk("[MUIC] UIC : Resume , MUIC_GPIO level %d, muic_irq_already_run %d\n", gpio_get_value(MUIC_GPIO), muic_irq_already_run);
 #endif
 	client->dev.power.power_state = PMSG_ON;
-#if defined(CONFIG_MACH_STAR_P990) || defined(CONFIG_MACH_STAR_SU660) || defined(CONFIG_MACH_STAR_P999)
 	if(muic_device == MAX14526)
 		muic_i2c_write_byte(CONTROL_2, INT_EN);
 
@@ -1483,9 +1482,8 @@ static s32 muic_resume(struct i2c_client *client)
 	spin_unlock_irqrestore(&muic_spin_lock, flags);
 #endif
 
-#endif
 
-#if 0	//                                    
+#if 0	//[gieseo.park@lge.com] - why suspend?
 	//	DBG("[MUIC] COSMO MUIC : Resume \n");
 	muic_init_device(RESET);
 #endif
@@ -1498,24 +1496,24 @@ static const struct i2c_device_id muic_ids[] = {
 	{/* end of list */},
 };
 
-//                                                            
+//LGE_Changes_S chulhwhee.shim@lge.com, 2010.12.7  FOTA update
 int fota_ebl_download(void)
 {
 	return 0;
 }
-//                                                            
+//LGE_Changes_E chulhwhee.shim@lge.com, 2010.12.7  FOTA update
 
-/*                                                                */
+/* LGE_CHANGE_S [kenneth.kang@lge.com] 2011-07-26, CP retain mode */
 static s32 __init muic_state(char *str)
 {
 	s32 muic_value = simple_strtol(str, NULL, 0);
 	retain_mode = muic_value;
-        boot_retain_mode = muic_value;	//                                                          
+        boot_retain_mode = muic_value;	//[gieseo.park@lge.com] for keeping retain_mode at boot_time
 	DBG("[MUIC] muic_state(): retain_mode = %s (%d)\n", retain_mode_str[retain_mode], retain_mode);
 	return 1;
 }
 __setup("muic_state=", muic_state);
-/*                                                                */
+/* LGE_CHANGE_E [kenneth.kang@lge.com] 2011-07-26, CP retain mode */
 
 /*
  * Allow user space tools to figure out which devices this driver can control.
@@ -1579,4 +1577,5 @@ module_exit(muic_exit);
 
 MODULE_DESCRIPTION("MUIC Driver");
 MODULE_LICENSE("GPL");
+
 
