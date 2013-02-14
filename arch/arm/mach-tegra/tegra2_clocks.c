@@ -166,7 +166,8 @@
 //#define TEGRA_MAX_CLOCK			1300000000
 //#define TEGRA_MAX_CLOCK			1352000000
 //#define TEGRA_MAX_CLOCK			1404000000
-#define TEGRA_MAX_CLOCK			1456000000
+//#define TEGRA_MAX_CLOCK			1456000000
+#define TEGRA_MAX_CLOCK			1500000000
 #else
 #define TEGRA_MAX_CLOCK			1000000000
 #endif
@@ -1962,6 +1963,12 @@ static struct clk tegra_pll_u = {
 
 static struct clk_pll_freq_table tegra_pll_x_freq_table[] = {
 #ifdef CONFIG_TEGRA_OC
+	/* 1.500 GHz */
+	{ 12000000, 1500000000,  875,  7, 1, 12},
+	{ 13000000, 1500000000,  923,  8, 1, 12},
+	{ 19200000, 1500000000,  625,  8, 1,  8},
+	{ 26000000, 1500000000,  750, 13, 1, 12},
+
 	/* 1.456 GHz */
 	{ 12000000, 1456000000,  728,  6, 1, 12},
 	{ 13000000, 1456000000,  896,  8, 1, 12},
@@ -2508,7 +2515,7 @@ struct clk tegra_list_periph_clks[] = {
 	PERIPH_CLK("uartd",	"tegra_uart.3",		NULL,	65,	0x1c0,	0x31E,	600000000, mux_pllp_pllc_pllm_clkm,	MUX | PERIPH_ON_APB),
 	PERIPH_CLK("uarte",	"tegra_uart.4",		NULL,	66,	0x1c4,	0x31E,	600000000, mux_pllp_pllc_pllm_clkm,	MUX | PERIPH_ON_APB),
 #ifdef CONFIG_TEGRA_OC
-	PERIPH_CLK("3d",	"3d",			NULL,	24,	0x158,	0x31E,	350000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71 | PERIPH_MANUAL_RESET), /* scales with voltage and process_id */
+	PERIPH_CLK("3d",	"3d",			NULL,	24,	0x158,	0x31E,	400000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71 | PERIPH_MANUAL_RESET), /* scales with voltage and process_id */
 	PERIPH_CLK("2d",	"2d",			NULL,	21,	0x15c,	0x31E,	350000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 #else
 	PERIPH_CLK("3d",	"3d",			NULL,	24,	0x158,	0x31E,	300000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71 | PERIPH_MANUAL_RESET), /* scales with voltage and process_id */
@@ -2771,7 +2778,7 @@ static struct cpufreq_frequency_table freq_table_1p2GHz[] = {
 };
 
 #ifdef CONFIG_TEGRA_OC
-static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
+static struct cpufreq_frequency_table freq_table_1p5GHz[] = {
 	{ 0, 216000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
@@ -2787,7 +2794,8 @@ static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
 	{12, 1352000 },
 	{13, 1404000 },
 	{14, 1456000 },
-	{15, CPUFREQ_TABLE_END }
+	{15, 1500000 },
+	{16, CPUFREQ_TABLE_END }
 };
 #endif
 
@@ -2796,7 +2804,7 @@ static struct tegra_cpufreq_table_data cpufreq_tables[] = {
 	{ freq_table_1p0GHz, 2, 6 },
 	{ freq_table_1p2GHz, 2, 6 },
 #ifdef CONFIG_TEGRA_OC
-	{ freq_table_1p4GHz, 2, 6 },
+	{ freq_table_1p5GHz, 2, 6 },
 #endif
 };
 
