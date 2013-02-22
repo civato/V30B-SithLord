@@ -167,7 +167,8 @@
 //#define TEGRA_MAX_CLOCK			1352000000
 //#define TEGRA_MAX_CLOCK			1404000000
 //#define TEGRA_MAX_CLOCK			1456000000
-#define TEGRA_MAX_CLOCK			1500000000
+//#define TEGRA_MAX_CLOCK			1500000000
+#define TEGRA_MAX_CLOCK			1544000000
 #else
 #define TEGRA_MAX_CLOCK			1000000000
 #endif
@@ -1963,6 +1964,12 @@ static struct clk tegra_pll_u = {
 
 static struct clk_pll_freq_table tegra_pll_x_freq_table[] = {
 #ifdef CONFIG_TEGRA_OC
+	/* 1.544 GHz */
+	{ 12000000, 1544000000,  772, 6, 1, 12},
+	{ 13000000, 1544000000,  950, 8, 1, 12},
+	{ 19200000, 1544000000,  965, 12, 1, 8},
+	{ 26000000, 1544000000,  772, 13, 1, 12},
+
 	/* 1.500 GHz */
 	{ 12000000, 1500000000,  875,  7, 1, 12},
 	{ 13000000, 1500000000,  923,  8, 1, 12},
@@ -2516,7 +2523,7 @@ struct clk tegra_list_periph_clks[] = {
 	PERIPH_CLK("uarte",	"tegra_uart.4",		NULL,	66,	0x1c4,	0x31E,	600000000, mux_pllp_pllc_pllm_clkm,	MUX | PERIPH_ON_APB),
 #ifdef CONFIG_TEGRA_OC
 	PERIPH_CLK("3d",	"3d",			NULL,	24,	0x158,	0x31E,	400000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71 | PERIPH_MANUAL_RESET), /* scales with voltage and process_id */
-	PERIPH_CLK("2d",	"2d",			NULL,	21,	0x15c,	0x31E,	350000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
+	PERIPH_CLK("2d",	"2d",			NULL,	21,	0x15c,	0x31E,	400000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 #else
 	PERIPH_CLK("3d",	"3d",			NULL,	24,	0x158,	0x31E,	300000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71 | PERIPH_MANUAL_RESET), /* scales with voltage and process_id */
 	PERIPH_CLK("2d",	"2d",			NULL,	21,	0x15c,	0x31E,	300000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
@@ -2795,7 +2802,8 @@ static struct cpufreq_frequency_table freq_table_1p5GHz[] = {
 	{13, 1404000 },
 	{14, 1456000 },
 	{15, 1500000 },
-	{16, CPUFREQ_TABLE_END }
+	{16, 1544000 },
+	{17, CPUFREQ_TABLE_END }
 };
 #endif
 
