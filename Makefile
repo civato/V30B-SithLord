@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 39
-EXTRAVERSION = .4
+EXTRAVERSION = .4~CivZ_SithLord_RX~2.2_24RH
 NAME = Flesh-Eating Bats with Fangs
 
 # *DOCUMENTATION*
@@ -339,10 +339,10 @@ CHECK		= sparse
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   =
+CFLAGS_MODULE   = -O2 -fmodulo-sched -fmodulo-sched-allow-regmoves -funswitch-loops -ftree-vectorize -march=armv7-a -mtune=cortex-a9
 AFLAGS_MODULE   =
 LDFLAGS_MODULE  =
-CFLAGS_KERNEL	=
+CFLAGS_KERNEL	= -O2 -fmodulo-sched -fmodulo-sched-allow-regmoves -funswitch-loops -ftree-vectorize -march=armv7-a -mtune=cortex-a9
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
