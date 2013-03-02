@@ -520,6 +520,13 @@ config TEGRA_WDT_RECOVERY
 
 endif
 
+config TEGRA2_LINK_CPU_GOVERNORS
+       bool "Tegra2 - Link CPU Governors"
+       default y
+	   depends on ARCH_TEGRA_2x_SOC
+	   help
+	     Force the scaling governor on both cores to stay in sync
+
 config TEGRA_SLOW_CSITE
 	bool "lower csite clock to 1 Mhz to reduce its power consumption"
 	default n
