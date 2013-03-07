@@ -99,14 +99,14 @@ enum {
 /*
  * CPU freq will be increased if measured load > inc_cpu_load;
  */
-#define DEFAULT_INC_CPU_LOAD 90
+#define DEFAULT_INC_CPU_LOAD 80
 static unsigned long inc_cpu_load;
 
 /*
  * CPU freq will be decreased if measured load < dec_cpu_load;
  * not implemented yet.
  */
-#define DEFAULT_DEC_CPU_LOAD 50
+#define DEFAULT_DEC_CPU_LOAD 45
 static unsigned long dec_cpu_load;
 
 /*
@@ -246,7 +246,7 @@ static inline void fix_screen_off_min_step(struct cpufreq_lulzactive_cpuinfo *pc
 	}
 	
 	if (DEFAULT_SCREEN_OFF_MIN_STEP == screen_off_min_step) 
-		screen_off_min_step = 5;
+		screen_off_min_step = 3;
 	
 	if (screen_off_min_step >= pcpu->freq_table_size)
 		screen_off_min_step = 3;

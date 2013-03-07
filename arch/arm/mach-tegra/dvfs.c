@@ -44,17 +44,16 @@
 #define DVFS_RAIL_STATS_SCALE	2
 #define DVFS_RAIL_STATS_RANGE   ((DVFS_RAIL_STATS_TOP_BIN - 1) * \
 				 DVFS_RAIL_STATS_BIN / DVFS_RAIL_STATS_SCALE)
+#define FREQCOUNT 13
+
+extern int cpufrequency[FREQCOUNT];
+extern int cpuuvoffset[FREQCOUNT];
 
 static LIST_HEAD(dvfs_rail_list);
 static DEFINE_MUTEX(dvfs_lock);
 static DEFINE_MUTEX(rail_disable_lock);
 
 static int dvfs_rail_update(struct dvfs_rail *rail);
-
-#ifdef CONFIG_TEGRA_OC
-struct dvfs *cpu_dvfs = NULL;
-extern int *UV_mV_Ptr;
-#endif
 
 void tegra_dvfs_add_relationships(struct dvfs_relationship *rels, int n)
 {
@@ -222,8 +221,8 @@ static int dvfs_rail_set_voltage(struct dvfs_rail *rail, int millivolts)
 			rail->updating = false;
 		}
 		if (ret) {
-			pr_err("Failed to set dvfs regulator %s\n", rail->reg_id);
-			goto out;
+			pr_err("Failed to set dvfs regulator %s to %d (max %d)\n", rail->reg_id, rail->new_millivolts, rail->max_millivolts);
+			return ret;
 		}
 
 		rail->millivolts = rail->new_millivolts;
@@ -335,7 +334,7 @@ static inline unsigned long *dvfs_get_freqs(struct dvfs *d)
 static int
 __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 {
-	int i = 0;
+	int i = 0, j = 0, mvoffset = 0;
 	int ret;
 	unsigned long *freqs = dvfs_get_freqs(d);
 
@@ -360,19 +359,15 @@ __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 				" %s\n", d->millivolts[i], d->clk_name);
 			return -EINVAL;
 		}
-#ifdef CONFIG_TEGRA_OC
-                if (UV_mV_Ptr)
-                       d->cur_millivolts = d->millivolts[i] - UV_mV_Ptr[i];
-                else
-                       d->cur_millivolts = d->millivolts[i];
+		if (strcmp(d->clk_name, "cpu") == 0)
+		{
+			for (j = 0; j < FREQCOUNT; j++)
+				if (cpufrequency[j] == (rate / 1000)) break;
+			if (j < FREQCOUNT) mvoffset = cpuuvoffset[j];
+			else pr_warn("tegra_dvfs: failed to find undervolt amount for rate %lu\n", rate);
+		}
 
-                //printk("d->clk_name = %s || ", d->clk_name);
-                //printk("d->freqs[%i] = %li || ", i, d->freqs[i]);
-                //printk("d->millivolts[%i] = %i || ", i, d->millivolts[i]);
-                //printk("d->cur_millivolts = %i\n", d->cur_millivolts);
-#else
-		d->cur_millivolts = d->millivolts[i];
-#endif
+		d->cur_millivolts = d->millivolts[i] - mvoffset;
 	}
 
 	d->cur_rate = rate;
@@ -485,15 +480,6 @@ int __init tegra_enable_dvfs_on_clk(struct clk *c, struct dvfs *d)
 	}
 
 	c->dvfs = d;
-
-#ifdef CONFIG_TEGRA_OC
-	if (cpu_dvfs == NULL) {
-		if (strcmp(d->clk_name, "cpu") == 0) {
-			pr_info("TEGRA_OC: CPU DVFS FOUND");
-			cpu_dvfs = d;
-		}
-	}
-#endif
 
 	mutex_lock(&dvfs_lock);
 	list_add_tail(&d->reg_node, &d->dvfs_rail->dvfs);

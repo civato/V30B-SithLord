@@ -33,14 +33,31 @@
 
 #include <trace/events/power.h>
 
-#ifdef CONFIG_TEGRA_OC
-#include "../dvfs.h"
-int *UV_mV_Ptr; /* Stored voltage table from cpufreq sysfs */
-extern struct dvfs *cpu_dvfs;
-#endif
-
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_CORE, \
 						"cpufreq-core", msg)
+
+/* Initial implementation of userspace voltage control */
+#if defined(CONFIG_TEGRA_OVERCLOCK)
+#define FREQCOUNT 13
+#else
+#define FREQCOUNT 9
+#endif
+
+#define CPUMVMAX 1400
+#define CPUMVMIN 700
+#if defined(CONFIG_TEGRA_OVERCLOCK)
+int cpufrequency[FREQCOUNT]  = { 216000, 312000, 456000, 608000, /*750000,*/ 760000, 816000, 912000, 1000000, 1100000, 1200000, 1300000, 1408000, 1504000 };
+#else
+int cpufrequency[FREQCOUNT]  = { 216000, 312000, 456000, 608000, 750000, 760000, 816000, 912000, 1000000, /*1200000*/ };
+#endif
+
+#if defined(CONFIG_TEGRA_OVERCLOCK)
+int cpuvoltage[FREQCOUNT] = {/*750,*/ 775, 800, 825, /*850,*/ 875, 900, 925, 950, 975, 1050, 1100, 1150, 1200, 1275};
+#else
+int cpuvoltage[FREQCOUNT] = {750, 775, 800, 825, 850, 875, 900, 925, 950, 975, /*1000, 1025, 1050, 1100, 1125*/};
+#endif
+
+int cpuuvoffset[15] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0};
 
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
@@ -468,8 +485,6 @@ show_one(cpuinfo_transition_latency, cpuinfo.transition_latency);
 show_one(scaling_min_freq, min);
 show_one(scaling_max_freq, max);
 show_one(scaling_cur_freq, cur);
-show_one(policy_min_freq, user_policy.min);
-show_one(policy_max_freq, user_policy.max);
 
 static int __cpufreq_set_policy(struct cpufreq_policy *data,
 				struct cpufreq_policy *policy);
@@ -493,7 +508,7 @@ static ssize_t store_##file_name					\
 		return -EINVAL;						\
 									\
 	ret = __cpufreq_set_policy(policy, &new_policy);		\
-	policy->user_policy.object = new_policy.object;			\
+	policy->user_policy.object = policy->object;			\
 									\
 	return ret ? ret : count;					\
 }
@@ -689,59 +704,52 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
-#ifdef CONFIG_TEGRA_OC
 static ssize_t show_frequency_voltage_table(struct cpufreq_policy *policy, char *buf)
 {
-	int i = 0;
 	char *table = buf;
-
-	if (cpu_dvfs == NULL)
-		return sprintf(buf, "INIT\n");
-
-	for (i = cpu_dvfs->num_freqs-1; i >= 0; i--)
-		table += sprintf(table, "%li %d %d\n", cpu_dvfs->freqs[i]/1000,
-				cpu_dvfs->millivolts[i], cpu_dvfs->millivolts[i] - UV_mV_Ptr[i]);
-
+	int i;
+	for (i = FREQCOUNT-1; i >=0; i--)
+		table += sprintf(table, "%d %d %d\n", cpufrequency[i], cpuvoltage[i], (cpuvoltage[i]-cpuuvoffset[i]));
 	return table - buf;
 }
 
 static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 {
-	int i;
 	char *table = buf;
+	int i;
 
-	if (cpu_dvfs == NULL)
-		return sprintf(buf, "INIT\n");
-
-	for (i = cpu_dvfs->num_freqs - 1; i >= 0; i--) {
-		table += sprintf(table, "%d ", UV_mV_Ptr[i]);
+	table += sprintf(table, "%d", cpuuvoffset[FREQCOUNT - 1]);
+	for (i = FREQCOUNT - 2; i > 0; i--)
+	{
+		table += sprintf(table, " %d", cpuuvoffset[i]);
 	}
-	table += sprintf(table, "\n");
+	table += sprintf(table, " %d\n", cpuuvoffset[0]);
+
 	return table - buf;
 }
 
-static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf, size_t count)
+static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, char *buf, size_t count)
 {
-	char *p = buf, *k;
-        int i = cpu_dvfs->num_freqs - 1;
-
-	while (i >= 0) {
-		k = strsep(&p, " ");
-		if (k == NULL)
-			break;
-		if (strlen(k) > 0) {
-			UV_mV_Ptr[i] = simple_strtol(k, NULL, 10);
-			pr_info("UV_mV[%d] = %d\n", i, UV_mV_Ptr[i]);
-			i--;
+	int tmptable[15];
+	int i;
+	unsigned int ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d", &tmptable[0], &tmptable[1], &tmptable[2], &tmptable[3], &tmptable[4], &tmptable[5], &tmptable[6], &tmptable[7], &tmptable[8], &tmptable[9], &tmptable[10], &tmptable[11], &tmptable[12], &tmptable[13], &tmptable[14]);
+	if (ret != FREQCOUNT){
+        printk(KERN_INFO "UV_mV_table: Incorect item count: %d\n",ret);
+		return -EINVAL;
+    }
+	for (i = 0; i < FREQCOUNT; i++)
+	{
+		if ((cpuvoltage[FREQCOUNT-1-i]-tmptable[i]) > CPUMVMAX || (cpuvoltage[FREQCOUNT-1-i]-tmptable[i]) < CPUMVMIN) // Keep within constraints
+		{
+			printk(KERN_INFO "UV_mV_table: Out of range %dmV (%d)\n",cpuvoltage[FREQCOUNT-1-i]-tmptable[i],cpufrequency[FREQCOUNT-1-i]);
+			return -EINVAL;
+		} else {
+			printk(KERN_INFO "UV_mV_table: set to %dmV (%d)\n",cpuvoltage[FREQCOUNT-1-i]-tmptable[i],cpufrequency[FREQCOUNT-1-i]);
+			cpuuvoffset[FREQCOUNT-1-i] = tmptable[i];
 		}
 	}
-
-	if (i == cpu_dvfs->num_freqs - 1)
-		return -EINVAL;
-
 	return count;
 }
-#endif
 
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
@@ -753,17 +761,12 @@ cpufreq_freq_attr_ro(scaling_cur_freq);
 cpufreq_freq_attr_ro(bios_limit);
 cpufreq_freq_attr_ro(related_cpus);
 cpufreq_freq_attr_ro(affected_cpus);
+cpufreq_freq_attr_ro(frequency_voltage_table);
 cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
-cpufreq_freq_attr_ro(policy_min_freq);
-cpufreq_freq_attr_ro(policy_max_freq);
-
-#ifdef CONFIG_TEGRA_OC
-cpufreq_freq_attr_ro(frequency_voltage_table);
 cpufreq_freq_attr_rw(UV_mV_table);
-#endif
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -773,17 +776,12 @@ static struct attribute *default_attrs[] = {
 	&scaling_max_freq.attr,
 	&affected_cpus.attr,
 	&related_cpus.attr,
+	&frequency_voltage_table.attr,
 	&scaling_governor.attr,
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
-	&policy_min_freq.attr,
-	&policy_max_freq.attr,
-
-#ifdef CONFIG_TEGRA_OC
-	&frequency_voltage_table.attr,
 	&UV_mV_table.attr,
-#endif
 	NULL
 };
 
@@ -1804,18 +1802,10 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 				struct cpufreq_policy *policy)
 {
 	int ret = 0;
-	unsigned int pmin = policy->min;
-	unsigned int pmax = policy->max;
-	unsigned int qmin = min(pm_qos_request(PM_QOS_CPU_FREQ_MIN), data->max);
-	unsigned int qmax = max(pm_qos_request(PM_QOS_CPU_FREQ_MAX), data->min);
 
 	cpufreq_debug_disable_ratelimit();
-	dprintk("setting new policy for CPU %u: %u - %u (%u - %u) kHz\n",
-		policy->cpu, pmin, pmax, qmin, qmax);
-
-	/* clamp the new policy to PM QoS limits */
-	policy->min = max(pmin, qmin);
-	policy->max = min(pmax, qmax);
+	dprintk("setting new policy for CPU %u: %u - %u kHz\n", policy->cpu,
+		policy->min, policy->max);
 
 	memcpy(&policy->cpuinfo, &data->cpuinfo,
 				sizeof(struct cpufreq_cpuinfo));
@@ -1871,7 +1861,6 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 
 			/* start new governor */
 			data->governor = policy->governor;
-			if (!cpu_online(1)) cpu_up(1);
 			if (__cpufreq_governor(data, CPUFREQ_GOV_START)) {
 				/* new governor failed, so re-start old one */
 				dprintk("starting governor %s failed\n",
@@ -1891,9 +1880,6 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 	}
 
 error_out:
-	/* restore the limits that the policy requested */
-	policy->min = pmin;
-	policy->max = pmax;
 	cpufreq_debug_enable_ratelimit();
 	return ret;
 }
@@ -2095,41 +2081,9 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 }
 EXPORT_SYMBOL_GPL(cpufreq_unregister_driver);
 
-static int cpu_freq_notify(struct notifier_block *b,
-			   unsigned long l, void *v);
-
-static struct notifier_block min_freq_notifier = {
-	.notifier_call = cpu_freq_notify,
-};
-static struct notifier_block max_freq_notifier = {
-	.notifier_call = cpu_freq_notify,
-};
-
-static int cpu_freq_notify(struct notifier_block *b,
-			   unsigned long l, void *v)
-{
-	int cpu;
-	dprintk("PM QoS %s %lu\n",
-		b == &min_freq_notifier ? "min" : "max", l);
-	for_each_online_cpu(cpu) {
-		struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
-		if (policy) {
-			cpufreq_update_policy(policy->cpu);
-			cpufreq_cpu_put(policy);
-		}
-	}
-	return NOTIFY_OK;
-}
-
 static int __init cpufreq_core_init(void)
 {
 	int cpu;
-	int rc;
-
-#ifdef CONFIG_TEGRA_OC
-	/* Allocate some memory for the voltage tab */
-	UV_mV_Ptr = kzalloc(sizeof(int)*(MAX_DVFS_FREQS), GFP_KERNEL);
-#endif
 
 	for_each_possible_cpu(cpu) {
 		per_cpu(cpufreq_policy_cpu, cpu) = -1;
@@ -2140,13 +2094,8 @@ static int __init cpufreq_core_init(void)
 						&cpu_sysdev_class.kset.kobj);
 	BUG_ON(!cpufreq_global_kobject);
 	register_syscore_ops(&cpufreq_syscore_ops);
-	rc = pm_qos_add_notifier(PM_QOS_CPU_FREQ_MIN,
-				 &min_freq_notifier);
-	BUG_ON(rc);
-	rc = pm_qos_add_notifier(PM_QOS_CPU_FREQ_MAX,
-				 &max_freq_notifier);
-	BUG_ON(rc);
 
 	return 0;
 }
 core_initcall(cpufreq_core_init);
+
